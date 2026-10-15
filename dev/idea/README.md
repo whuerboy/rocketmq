@@ -36,9 +36,11 @@ machine-specific JDK name, or globally configured `ROCKETMQ_HOME`.
 3. Generate the protocol classes and compile the server modules once:
 
    ```shell
-   mvn -pl namesrv,broker -am -Dmaven.test.skip=true compile
+   mvn -pl "namesrv,broker" -am "-Dmaven.test.skip=true" compile
    ```
 
+   Keep the quotes around the module list and the `-D` argument, including in
+   Windows PowerShell, which can otherwise split dotted property arguments.
    This uses your normal Maven settings. No repository mirror or absolute path
    needs to be committed. In the Maven tool window, reload the project after
    generating sources if IDEA has not picked them up.
