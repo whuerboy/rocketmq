@@ -22,7 +22,7 @@ machine-specific JDK name, or globally configured `ROCKETMQ_HOME`.
 
 ## Prepare the project once
 
-1. Install JDK 17 and Maven. Import the repository's root `pom.xml` as a Maven
+1. Install JDK 17 and Maven 3.6.3 or newer. Import the repository's root `pom.xml` as a Maven
    project in IntelliJ IDEA. Set both the project SDK and Maven JDK to JDK 17.
    These configurations use the module/project SDK; they do not select an
    individually named SDK. Import the full Maven reactor rather than an
@@ -33,7 +33,10 @@ machine-specific JDK name, or globally configured `ROCKETMQ_HOME`.
    git submodule update --init --recursive
    ```
 
-3. Generate the protocol classes and compile the server modules once:
+3. The shared configurations run Maven `compile` before launching each server.
+   This generates protocol classes and compiles the selected module and its
+   dependencies. A separate first build is optional; to prepare both servers
+   from a terminal, run:
 
    ```shell
    mvn -pl "namesrv,broker" -am "-Dmaven.test.skip=true" compile
@@ -42,28 +45,30 @@ machine-specific JDK name, or globally configured `ROCKETMQ_HOME`.
    Keep the quotes around the module list and the `-D` argument, including in
    Windows PowerShell, which can otherwise split dotted property arguments.
    This uses your normal Maven settings. No repository mirror or absolute path
-   needs to be committed. In the Maven tool window, run **Generate Sources and
-   Update Folders for All Projects** after the first build, then reload Maven.
-   In **Project Structure > Modules > rocketmq-proto > Sources**, verify that
-   both directories below are registered as generated source roots:
+   needs to be committed. `rocketmq-proto/pom.xml` explicitly registers both
+   generated source directories through `build-helper-maven-plugin`, so Maven
+   importers do not need to discover the nested layout by scanning:
 
    - `target/generated-sources/protobuf/java`
    - `target/generated-sources/protobuf/grpc-java`
 
-   If IDEA has not registered them, mark those two directories as
-   **Generated Sources Root**. Do not mark all of `target` as a source root.
-   Maven's successful build alone does not guarantee that IDEA has imported
-   these nested source directories; its own Build can otherwise skip the proto
-   module and fail later with `package apache.rocketmq.v2 does not exist`.
-4. In **Settings > Build, Execution, Deployment > Compiler > Java Compiler**,
-   disable **Use '--release' option for cross-compilation (Java 9 and later)**.
-   The project targets Java 8 bytecode but accesses `sun.misc.Unsafe`; compiling
-   on JDK 17 with `--release 8` hides that internal API. Keep the bytecode target
-   inherited from the POM rather than changing it to 17.
+   Reload Maven after updating from an older version of these configurations
+   so IDEA imports the new source-root declarations. Do not mark all of `target`
+   as a source root or commit the generated Java files.
+4. In **Run > Edit Configurations**, check the server's **Before launch** task
+   is **Run Maven Goal**, not IDEA's **Build**. The checked-in task runs `compile`
+   with tests, Checkstyle and SpotBugs skipped for local debugging. Normal Maven
+   builds retain their checks. Both the project SDK and Maven runner JDK must
+   be JDK 17.
 
-The initial Maven build and dependency download are prerequisites, not actions
-performed by the run configurations. Their **Before launch: Build** step then
-compiles source changes before each subsequent run.
+The first run downloads Maven dependencies as needed and is slower than later
+runs. JDK/Maven installation, Maven import and submodule initialization are
+still prerequisites. Maven compilation uses the POM's Java 8 source/target
+settings, so these launches do not require changing IDEA's `--release` option.
+If you separately use IDEA's native **Build Project** with JDK 17, disable
+**Use '--release' option for cross-compilation (Java 9 and later)**: `--release 8`
+hides the internal `sun.misc.Unsafe` API used by this source. The shared
+configurations deliberately do not invoke that native builder.
 
 ## Start and debug
 
@@ -124,10 +129,12 @@ the store directory with another running Broker.
   **Source - Broker**.
 - **Main class not found:** check that Maven import and compilation completed.
   A failed rebuild can remove the old output without generating replacement
-  classes. Do not skip the failed **Before launch: Build** step.
-- **Unsafe is not found:** check the `--release` option described above.
+  classes. Do not skip a failed **Before launch: Run Maven Goal** step.
+- **Unsafe is not found:** make sure the configuration runs the Maven goal and
+  has no additional native **Build** task. The `--release` setting above applies
+  only when choosing to use IDEA's native compiler separately.
 - **Protocol package is not found:** check the two generated roots above and
-  update Maven's source folders before running IDEA's Build. Check the project
+  reload the updated POM, and check that the Maven pre-launch task succeeds. Check the project
   SDK, module SDKs and Maven runner JDK are all JDK 17; the run configurations
   inherit those settings rather than installing or selecting a named SDK.
 - **GPG plugin cannot be resolved:** the root POM declares the signing plugin
