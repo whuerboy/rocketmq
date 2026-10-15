@@ -42,8 +42,19 @@ machine-specific JDK name, or globally configured `ROCKETMQ_HOME`.
    Keep the quotes around the module list and the `-D` argument, including in
    Windows PowerShell, which can otherwise split dotted property arguments.
    This uses your normal Maven settings. No repository mirror or absolute path
-   needs to be committed. In the Maven tool window, reload the project after
-   generating sources if IDEA has not picked them up.
+   needs to be committed. In the Maven tool window, run **Generate Sources and
+   Update Folders for All Projects** after the first build, then reload Maven.
+   In **Project Structure > Modules > rocketmq-proto > Sources**, verify that
+   both directories below are registered as generated source roots:
+
+   - `target/generated-sources/protobuf/java`
+   - `target/generated-sources/protobuf/grpc-java`
+
+   If IDEA has not registered them, mark those two directories as
+   **Generated Sources Root**. Do not mark all of `target` as a source root.
+   Maven's successful build alone does not guarantee that IDEA has imported
+   these nested source directories; its own Build can otherwise skip the proto
+   module and fail later with `package apache.rocketmq.v2 does not exist`.
 4. In **Settings > Build, Execution, Deployment > Compiler > Java Compiler**,
    disable **Use '--release' option for cross-compilation (Java 9 and later)**.
    The project targets Java 8 bytecode but accesses `sun.misc.Unsafe`; compiling
@@ -115,6 +126,16 @@ the store directory with another running Broker.
   A failed rebuild can remove the old output without generating replacement
   classes. Do not skip the failed **Before launch: Build** step.
 - **Unsafe is not found:** check the `--release` option described above.
+- **Protocol package is not found:** check the two generated roots above and
+  update Maven's source folders before running IDEA's Build. Check the project
+  SDK, module SDKs and Maven runner JDK are all JDK 17; the run configurations
+  inherit those settings rather than installing or selecting a named SDK.
+- **GPG plugin cannot be resolved:** the root POM declares the signing plugin
+  for releases. Local source debugging does not require signing. With the same
+  Maven settings used by IDEA, resolve its help goal with
+  `mvn -N org.apache.maven.plugins:maven-gpg-plugin:1.6:help` and reload Maven.
+  Do not activate the release profile or remove signing configuration to work
+  around a missing plugin download.
 - **Port already in use:** stop the other instance, or adjust both server
   configuration files and your clients to use a consistent set of free ports.
   Changing the Broker's client port also changes its fast client port
